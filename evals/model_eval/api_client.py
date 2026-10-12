@@ -54,7 +54,7 @@ class OpenRouterClient(BaseAPIClient):
         
         # Use OpenAI client with OpenRouter base URL (like prompt_manager.py)
         self.client = openai.OpenAI(
-            base_url="https://openrouter.ai/api/v1",
+            base_url=os.getenv("OPENAI_BASE_URL") or "https://openrouter.ai/api/v1",
             api_key=self.api_key
         )
     
