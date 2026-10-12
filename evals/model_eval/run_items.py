@@ -11,9 +11,9 @@ asked of it. Same prompts, same judges, same per-question FAMA.
 Writes one JSON array of answers, in the order of the input, after each
 persona: every question asked, with its response, its FAMA and the judges'
 per-criterion results. A question whose model call failed (the evaluator
-records the response as "ERROR: ...") carries ``error`` and a ``fama`` of
-null rather than the 0 the evaluator gives it, so a failed call is not read
-as a wrong answer. Each persona's own eval_results/eval_report files are
+records the response as "ERROR: ...") carries ``error``, no response and a
+``fama`` of null rather than the 0 the evaluator gives it, so a failed call
+is not read as a wrong answer. Each persona's own eval_results/eval_report files are
 kept beside the answers file, under memora/<period>/<persona>/.
 
     python evals/model_eval/run_items.py --questions data/weekly.json \
@@ -72,7 +72,7 @@ def answer(q, got):
         "per_judge_metrics", "evaluation_questions")})
     response = a.get("model_response") or ""
     if isinstance(response, str) and response.startswith("ERROR: "):
-        a.update(error=response[len("ERROR: "):], fama=None)
+        a.update(error=response[len("ERROR: "):], model_response=None, fama=None)
     return a
 
 
