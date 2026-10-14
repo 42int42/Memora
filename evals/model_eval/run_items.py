@@ -3,18 +3,24 @@
 Track 1 over a list of questions rather than one persona's directory.
 
 Reads a JSON array of questions as flatten_questions.py writes them (each
-with ``persona`` and ``period``), and for each persona in the order they
-first appear runs the unchanged EvaluationRunner of model_based_evaluator.py
-on a directory holding that persona's conversations and only the questions
-asked of it. Same prompts, same judges, same per-question FAMA.
+with ``persona`` and ``period``), and for each question, persona by persona
+in the order they first appear, runs the unchanged EvaluationRunner of
+model_based_evaluator.py on a directory holding that persona's conversations
+and that one question. Same prompts, same judges, same per-question FAMA.
+
+Before each question it prints one line naming it, flushed before any of its
+model calls: ``=== item <persona>-<question_id> ===``. A question_id is
+unique only within a persona, and the same question is asked of several, so
+this line is what tells a reader of the output - and of the calls made after
+it - which question they belong to.
 
 Writes one JSON array of answers, in the order of the input, after each
 persona: every question asked, with its response, its FAMA and the judges'
 per-criterion results. A question whose model call failed (the evaluator
 records the response as "ERROR: ...") carries ``error``, no response and a
 ``fama`` of null rather than the 0 the evaluator gives it, so a failed call
-is not read as a wrong answer. Each persona's own eval_results/eval_report files are
-kept beside the answers file, under memora/<period>/<persona>/.
+is not read as a wrong answer. Each question's own eval_results/eval_report files are
+kept beside the answers file, under memora/<period>/<persona>/<question_id>/.
 
     python evals/model_eval/run_items.py --questions data/weekly.json \
         --output answers.json --model anthropic/claude-sonnet-4.5
@@ -107,17 +113,20 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         for (period, persona), asked in groups(questions).items():
             print(f"\n=== {period}/{persona}: {len(asked)} questions ===", flush=True)
-            runner = EvaluationRunner(
-                sessions_dir=lay_out(Path(tmp), period, persona, asked),
-                model_name=args.model, api_client=client,
-                output_dir=kept / period / persona,
-                use_multi_judge=not args.no_multi_judge, judge_models=judges,
-                reasoning_config=reasoning)
-            report = runner.run_evaluation()
-            for got in report.get("detailed_results", []):
-                results[(period, persona, got["question_id"])] = got
-            write(output, [answer(q, results.get((q["period"], q["persona"], q["question_id"])))
-                           for q in questions if (q["period"], q["persona"]) in {k[:2] for k in results}])
+            for q in asked:
+                print(f"=== item {persona}-{q['question_id']} ===", flush=True)
+                runner = EvaluationRunner(
+                    sessions_dir=lay_out(Path(tmp) / str(len(results)), period, persona, [q]),
+                    model_name=args.model, api_client=client,
+                    output_dir=kept / period / persona / q["question_id"],
+                    use_multi_judge=not args.no_multi_judge, judge_models=judges,
+                    reasoning_config=reasoning)
+                report = runner.run_evaluation()
+                for got in report.get("detailed_results", []):
+                    results[(period, persona, got["question_id"])] = got
+                results.setdefault((period, persona, q["question_id"]), None)
+                write(output, [answer(x, results.get((x["period"], x["persona"], x["question_id"])))
+                               for x in questions if (x["period"], x["persona"], x["question_id"]) in results])
     write(output, [answer(q, results.get((q["period"], q["persona"], q["question_id"]))) for q in questions])
 
 
