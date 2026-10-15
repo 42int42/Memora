@@ -431,7 +431,7 @@ class PromptBuilder:
                 
                 if speaker == 'ai_agent':
                     conv_text_parts.append(f"Assistant: {message}")
-                elif speaker == 'user':
+                elif speaker in ["user_agent", "user"]:
                     conv_text_parts.append(f"User: {message}")
             
             conv_text_parts.append("")  # Add blank line between sessions
